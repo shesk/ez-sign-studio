@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>EZ Sign Studio</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#121214">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=Roboto+Slab:wght@700&display=swap">
+<style>
+/* Layout: one narrow column, phone first. The 4:3 panel preview leads; controls stack under it; save bar at the end. */
+:root {
+  --bg: #eef0f2;
+  --surface: #ffffff;
+  --ink: #18191c;
+  --muted: #5d6168;
+  --line: #d5d8dd;
+  --accent: #b3261e;          /* the panel's own red ink */
+  --accent-ink: #ffffff;
+  --bezel: #121214;           /* the EZ Sign's black frame */
+  --focus: #1d5fd1;
+  --ok: #1f7a46;
+  --warn: #9a5b00;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.75rem;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141518; --surface: #1e2024; --ink: #eceef1; --muted: #a2a7af; --line: #33363c;
+    --accent: #e0574b; --accent-ink: #1a0503; --bezel: #050506; --focus: #7aa7ff; --ok: #5fcf8e; --warn: #f0b04a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141518; --surface: #1e2024; --ink: #eceef1; --muted: #a2a7af; --line: #33363c;
+  --accent: #e0574b; --accent-ink: #1a0503; --bezel: #050506; --focus: #7aa7ff; --ok: #5fcf8e; --warn: #f0b04a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: var(--step-0); line-height: 1.45;
+}
+.wrap {
+  max-width: 34rem; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--font-display); font-weight: 800; font-size: var(--step-2);
+  letter-spacing: 0.01em; margin: 0; text-wrap: balance; line-height: 1.05;
+}
+.spec { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+
+/* Panel preview: drawn like the physical sign, black bezel around a 400x300 face. */
+.panel {
+  background: var(--bezel); border-radius: 6px; padding: 14px 14px 22px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25), 0 10px 28px -14px rgba(0,0,0,0.45);
+}
+.panel canvas {
+  display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; max-width: 100%;
+  image-rendering: pixelated; background: #e6e4df;
+}
+.panel-meta {
+  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mode switch */
+.modes { display: grid; grid-template-columns: 1fr 1fr; background: var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; }
+.modes button {
+  font: 600 var(--step-0) var(--font-display); letter-spacing: 0.04em; text-transform: uppercase;
+  border: 0; border-radius: 8px; padding: 10px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.modes button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+
+fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.label {
+  font-family: var(--font-display); font-weight: 600; font-size: var(--step--1);
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+textarea, input[type="text"], select {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%;
+}
+textarea { min-height: 5.5rem; resize: vertical; font-family: var(--font-display); font-weight: 600; font-size: var(--step-1); line-height: 1.2; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 360px) { .row { grid-template-columns: 1fr; } }
+
+/* Ink swatches: the panel's four colors */
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0;
+  position: relative;
+}
+.swatch[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface) inset; }
+.swatch[data-c="0"] { background: #1d1b1b; }
+.swatch[data-c="1"] { background: #e9e7e2; }
+.swatch[data-c="2"] { background: #e5b30c; }
+.swatch[data-c="3"] { background: #b5281c; }
+
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button {
+  font: 500 var(--step--1) var(--font-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 7px 13px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.picker {
+  display: flex; flex-direction: column; gap: 8px;
+  border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 14px; background: var(--surface);
+}
+.picker input[type="file"] { width: 100%; font: inherit; color: var(--muted); }
+.picker input[type="file"]::file-selector-button {
+  font: 700 var(--step-0) var(--font-display); letter-spacing: 0.04em; text-transform: uppercase;
+  background: var(--ink); color: var(--bg); border: 0; border-radius: 8px; padding: 10px 14px; margin-right: 10px; cursor: pointer;
+}
+.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+.hint { font-size: var(--step--1); color: var(--muted); margin: 0; }
+
+/* Save */
+.save {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;
+}
+.name-row { display: flex; align-items: center; gap: 0; }
+.name-row input { border-top-right-radius: 0; border-bottom-right-radius: 0; min-width: 0; }
+.ext {
+  font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); white-space: nowrap;
+  border: 1px solid var(--line); border-left: 0; border-radius: 0 8px 8px 0; padding: 11px 10px; background: var(--bg);
+}
+.primary {
+  font: 700 var(--step-1) var(--font-display); letter-spacing: 0.04em; text-transform: uppercase;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 13px; cursor: pointer;
+}
+.primary:disabled { opacity: 0.5; cursor: default; }
+.status { font-size: var(--step--1); min-height: 1.2em; margin: 0; }
+.status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
+
+.steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; color: var(--ink); }
+.steps code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); margin: 0; }
+
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, .picker:focus-within {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>EZ Sign Studio</h1>
+    <span class="spec">400 × 300 · 4-color · .ezs</span>
+  </header>
+
+  <div class="panel" aria-label="Preview of the display">
+    <canvas id="preview" width="400" height="300"></canvas>
+  </div>
+  <div class="panel-meta">
+    <span id="meta-size">—</span>
+    <span id="meta-apdu">—</span>
+  </div>
+
+  <div class="modes" role="tablist" aria-label="What to put on the sign">
+    <button id="tab-text" role="tab" aria-selected="true" aria-controls="pane-text">Text sign</button>
+    <button id="tab-photo" role="tab" aria-selected="false" aria-controls="pane-photo">Photo</button>
+  </div>
+
+  <fieldset id="pane-text" role="tabpanel" aria-labelledby="tab-text">
+    <div class="field">
+      <label class="label" for="text-input">Text — one line per row</label>
+      <textarea id="text-input" spellcheck="false">IN A MEETING
+Back at 2:30</textarea>
+    </div>
+    <div class="row">
+      <div class="field">
+        <span class="label" id="lbl-fg">Text color</span>
+        <div class="swatches" id="fg" role="group" aria-labelledby="lbl-fg"></div>
+      </div>
+      <div class="field">
+        <span class="label" id="lbl-bg">Background</span>
+        <div class="swatches" id="bg" role="group" aria-labelledby="lbl-bg"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <span class="label" id="lbl-font">Typeface</span>
+        <div class="seg" id="font" role="group" aria-labelledby="lbl-font">
+          <button type="button" data-v="sans" aria-pressed="true">Condensed</button>
+          <button type="button" data-v="slab" aria-pressed="false">Slab</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="lbl-frame">Frame</span>
+        <div class="seg" id="frame" role="group" aria-labelledby="lbl-frame">
+          <button type="button" data-v="none" aria-pressed="false">None</button>
+          <button type="button" data-v="bar" aria-pressed="true">Top bar</button>
+          <button type="button" data-v="border" aria-pressed="false">Border</button>
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset id="pane-photo" role="tabpanel" aria-labelledby="tab-photo" hidden>
+    <div class="picker">
+      <label class="label" for="photo-input">Photo or image</label>
+      <input id="photo-input" type="file" accept="image/*">
+      <p class="status" id="photo-status" role="status">No image chosen yet.</p>
+    </div>
+    <div class="field">
+      <span class="label" id="lbl-fit">Framing</span>
+      <div class="seg" id="fit" role="group" aria-labelledby="lbl-fit">
+        <button type="button" data-v="cover" aria-pressed="true">Fill (crop)</button>
+        <button type="button" data-v="fit" aria-pressed="false">Fit (margins)</button>
+        <button type="button" id="rotate" aria-pressed="false">Rotate 90°</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label" id="lbl-dither">Dithering</span>
+      <div class="seg" id="dither" role="group" aria-labelledby="lbl-dither">
+        <button type="button" data-v="atkinson" aria-pressed="true">Atkinson</button>
+        <button type="button" data-v="floyd-steinberg" aria-pressed="false">Floyd–Steinberg</button>
+        <button type="button" data-v="jarvis" aria-pressed="false">Jarvis</button>
+        <button type="button" data-v="none" aria-pressed="false">None</button>
+      </div>
+      <p class="hint">Atkinson keeps photos crisp on four inks. Use None for logos and flat graphics.</p>
+    </div>
+    <label class="toggle" for="tuned">
+      <input id="tuned" type="checkbox" checked>
+      <span>Match the panel's real colors <span class="hint">(darker inks, softer white; best for photos)</span></span>
+    </label>
+  </fieldset>
+
+  <div class="save">
+    <label class="label" for="filename">File name</label>
+    <div class="name-row">
+      <input id="filename" type="text" value="meeting" autocomplete="off" spellcheck="false">
+      <span class="ext">.ezs</span>
+    </div>
+    <button class="primary" id="save" type="button">Save payload</button>
+    <p class="status" id="status" role="status"></p>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:8px">
+    <h2>Send it to the Flipper</h2>
+    <ol class="steps">
+      <li>Tap <b>Save payload</b>. The file lands in your Downloads folder.</li>
+      <li>Open the <b>Flipper</b> mobile app, connected over Bluetooth.</li>
+      <li>Go to <b>Options → File Manager → ext → apps_data → ez_sign</b> and upload the file.</li>
+      <li>On the Flipper: <b>Apps → NFC → EZ Sign Writer</b>, press <b>OK</b>, pick the file, hold it on the sign.</li>
+    </ol>
+    <p class="hint">Everything is generated on this device. Nothing about your image leaves the page except the file you choose to save.</p>
+  </section>
+</div>
+
+<script>
+/* EZ Sign .ezs encoder core. Pure functions, no DOM. Used by the web app and the Node tests.
+ *
+ * Pipeline: RGB pixels -> palette indices (dither) -> pack 2bpp rows right-to-left
+ *           -> 2000-byte blocks -> LZO1X compress -> 250-byte fragments -> F0 D3 APDUs -> .ezs file
+ */
+(function (root) {
+  "use strict";
+
+  const W = 400, H = 300, BPP = 2;
+  const BLOCK = 2000, FRAG = 250;
+
+  // Panel color indices: 0 black, 1 white, 2 yellow, 3 red.
+  const PALETTE_PURE = [[0, 0, 0], [255, 255, 255], [255, 255, 0], [255, 0, 0]];
+  const PALETTE_TUNED = [[0, 0, 0], [160, 160, 160], [200, 128, 0], [160, 0, 0]];
+
+  /* ---------------- color science (CIELAB, D65) ---------------- */
+  function srgbToLin(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function linToSrgb(c) { c = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return Math.max(0, Math.min(255, c * 255)); }
+  const fLab = t => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  const fLabInv = t => (t * t * t > 216 / 24389 ? t * t * t : (116 * t - 16) / (24389 / 27));
+  const XN = 0.95047, ZN = 1.08883;
+
+  function rgbToLab(r, g, b) {
+    r = srgbToLin(r); g = srgbToLin(g); b = srgbToLin(b);
+    const x = (0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / XN;
+    const y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+    const z = (0.0193339 * r + 0.1191920 * g + 0.9503041 * b) / ZN;
+    const fx = fLab(x), fy = fLab(y), fz = fLab(z);
+    return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+  }
+  function labToRgb(L, a, bb) {
+    const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - bb / 200;
+    const x = fLabInv(fx) * XN, y = fLabInv(fy), z = fLabInv(fz) * ZN;
+    return [
+      linToSrgb(3.2404542 * x - 1.5371385 * y - 0.4985314 * z),
+      linToSrgb(-0.9692660 * x + 1.8760108 * y + 0.0415560 * z),
+      linToSrgb(0.0556434 * x - 0.2040259 * y + 1.0572252 * z),
+    ];
+  }
+
+  /* ---------------- dithering ----------------
+   * rgb: Uint8ClampedArray RGBA (canvas ImageData layout), w*h*4
+   * returns Uint8Array of palette indices, w*h
+   */
+  const KERNELS = {
+    "floyd-steinberg": { div: 16, k: [[1, 0, 7], [-1, 1, 3], [0, 1, 5], [1, 1, 1]] },
+    atkinson: { div: 8, k: [[1, 0, 1], [2, 0, 1], [-1, 1, 1], [0, 1, 1], [1, 1, 1], [0, 2, 1]] },
+    jarvis: { div: 48, k: [[1, 0, 7], [2, 0, 5], [-2, 1, 3], [-1, 1, 5], [0, 1, 7], [1, 1, 5], [2, 1, 3],
+      [-2, 2, 1], [-1, 2, 3], [0, 2, 5], [1, 2, 3], [2, 2, 1]] },
+  };
+
+  function quantize(rgba, w, h, opts) {
+    const dither = opts.dither || "floyd-steinberg";
+    const palRgb = opts.palette === "tuned" ? PALETTE_TUNED : PALETTE_PURE;
+    const pal = palRgb.map(c => rgbToLab(c[0], c[1], c[2]));
+    const toneMap = opts.toneMap === undefined ? opts.palette === "tuned" : opts.toneMap;
+    const lScale = toneMap ? pal[1][0] / 100 : 1; // squeeze L* into the panel's real white
+
+    const n = w * h;
+    const L = new Float32Array(n), A = new Float32Array(n), B = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const lab = rgbToLab(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]);
+      // treat transparent pixels as white
+      const a = rgba[i * 4 + 3] / 255;
+      L[i] = (lab[0] * a + 100 * (1 - a)) * lScale; A[i] = lab[1] * a; B[i] = lab[2] * a;
+    }
+
+    const out = new Uint8Array(n);
+    const kern = KERNELS[dither];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        let best = 0, bd = Infinity;
+        for (let p = 0; p < pal.length; p++) {
+          const dl = L[i] - pal[p][0], da = A[i] - pal[p][1], db = B[i] - pal[p][2];
+          const d = dl * dl + da * da + db * db;
+          if (d < bd) { bd = d; best = p; }
+        }
+        out[i] = best;
+        if (!kern) continue;
+        const el = L[i] - pal[best][0], ea = A[i] - pal[best][1], eb = B[i] - pal[best][2];
+        for (const [dx, dy, wt] of kern.k) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || xx >= w || yy >= h) continue;
+          const j = yy * w + xx, f = wt / kern.div;
+          L[j] += el * f; A[j] += ea * f; B[j] += eb * f;
+        }
+      }
+    }
+    return out;
+  }
+
+  /* ---------------- packing ---------------- */
+  // Each row packed right-to-left: byte k of the row holds pixels starting at (bpr-1-k)*4,
+  // pixel i of that group in bits (2i, 2i+1).
+  function pack(indices, w, h) {
+    const bpr = w / 4, out = new Uint8Array(bpr * h);
+    for (let y = 0; y < h; y++) {
+      for (let k = 0; k < bpr; k++) {
+        const base = y * w + (bpr - 1 - k) * 4;
+        out[y * bpr + k] = indices[base] | (indices[base + 1] << 2) | (indices[base + 2] << 4) | (indices[base + 3] << 6);
+      }
+    }
+    return out;
+  }
+
+  /* ---------------- LZO1X compressor ----------------
+   * Emits a valid LZO1X stream using literal runs, M2 and M3 matches (block <= 16 KB,
+   * so M4 is never needed). Greedy hash matching, min match length 4.
+   * Format follows lzo1x_d.ch from the LZO reference decompressor.
+   */
+  function lzo1xCompress(src) {
+    const n = src.length, out = [];
+    const HBITS = 12, head = new Int32Array(1 << HBITS).fill(-1);
+    const hash = i => Math.imul((src[i] | (src[i + 1] << 8) | (src[i + 2] << 16) | (src[i + 3] << 24)), 2654435761) >>> (32 - HBITS);
+
+    function emitLiterals(from, to) {
+      let t = to - from;
+      if (t === 0) return;
+      if (out.length === 0 && t <= 238) out.push(17 + t);
+      else if (t <= 3) out[out.length - 2] |= t;
+      else if (t <= 18) out.push(t - 3);
+      else {
+        let tt = t - 18;
+        out.push(0);
+        while (tt > 255) { tt -= 255; out.push(0); }
+        out.push(tt);
+      }
+      for (let i = from; i < to; i++) out.push(src[i]);
+    }
+
+    function emitMatch(len, dist) {
+      if (dist > 16384) throw new Error("distance too large for M3");
+      if (len <= 8 && dist <= 2048) {
+        const o = dist - 1;
+        out.push(((len - 1) << 5) | ((o & 7) << 2), o >> 3);
+        return;
+      }
+      const o = dist - 1;
+      if (len <= 33) out.push(32 | (len - 2));
+      else {
+        let m = len - 33;
+        out.push(32);
+        while (m > 255) { m -= 255; out.push(0); }
+        out.push(m);
+      }
+      out.push((o << 2) & 0xff, (o >> 6) & 0xff);
+    }
+
+    let ip = 0, lit = 0;
+    while (ip + 4 <= n) {
+      const hv = hash(ip) & ((1 << HBITS) - 1);
+      const cand = head[hv];
+      head[hv] = ip;
+      if (cand >= 0 && ip - cand <= 16384 &&
+          src[cand] === src[ip] && src[cand + 1] === src[ip + 1] &&
+          src[cand + 2] === src[ip + 2] && src[cand + 3] === src[ip + 3]) {
+        let len = 4;
+        while (ip + len < n && src[cand + len] === src[ip + len]) len++;
+        emitLiterals(lit, ip);
+        emitMatch(len, ip - cand);
+        // seed the hash table inside the match so later data can reference it
+        const end = ip + len;
+        for (let j = ip + 1; j < end && j + 4 <= n; j++) head[hash(j) & ((1 << HBITS) - 1)] = j;
+        ip = end;
+        lit = ip;
+      } else {
+        ip++;
+      }
+    }
+    emitLiterals(lit, n);
+    out.push(0x11, 0x00, 0x00); // end of stream (M4 with zero distance)
+    return Uint8Array.from(out);
+  }
+
+  /* ---------------- .ezs container ---------------- */
+  function buildEzs(indices) {
+    const packed = pack(indices, W, H);
+    const apdus = [];
+    for (let b = 0; b * BLOCK < packed.length; b++) {
+      const comp = lzo1xCompress(packed.subarray(b * BLOCK, Math.min((b + 1) * BLOCK, packed.length)));
+      const nfrag = Math.ceil(comp.length / FRAG);
+      for (let f = 0; f < nfrag; f++) {
+        const part = comp.subarray(f * FRAG, Math.min((f + 1) * FRAG, comp.length));
+        const a = new Uint8Array(7 + part.length);
+        a.set([0xF0, 0xD3, 0x00, f === nfrag - 1 ? 0x01 : 0x00, part.length + 2, b, f]);
+        a.set(part, 7);
+        apdus.push(a);
+      }
+    }
+    const size = 12 + apdus.reduce((s, a) => s + 2 + a.length, 0);
+    const buf = new Uint8Array(size), dv = new DataView(buf.buffer);
+    buf.set([0x45, 0x5A, 0x53, 0x31]); // "EZS1"
+    dv.setUint16(4, W, true); dv.setUint16(6, H, true);
+    buf[8] = BPP; buf[9] = 0; dv.setUint16(10, apdus.length, true);
+    let off = 12;
+    for (const a of apdus) { dv.setUint16(off, a.length, true); buf.set(a, off + 2); off += 2 + a.length; }
+    return buf;
+  }
+
+  const api = { W, H, PALETTE_PURE, PALETTE_TUNED, quantize, pack, lzo1xCompress, buildEzs, labToRgb, rgbToLab };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.EzsCore = api;
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<script>
+(function () {
+  "use strict";
+  const W = 400, H = 300;
+  // How each ink actually looks on the panel, for the preview only.
+  const SHOW = [[29, 27, 27], [233, 231, 226], [229, 179, 12], [181, 40, 28]];
+  const INK_NAMES = ["Black", "White", "Yellow", "Red"];
+
+  const state = {
+    mode: "text",
+    text: { fg: 0, bg: 1, font: "sans", frame: "bar" },
+    photo: { img: null, fit: "cover", rotate: false, dither: "atkinson", tuned: true },
+    payload: null,
+  };
+
+  const $ = id => document.getElementById(id);
+  const work = document.createElement("canvas"); work.width = W; work.height = H;
+  const wctx = work.getContext("2d", { willReadFrequently: true });
+  const prev = $("preview"), pctx = prev.getContext("2d");
+
+  /* ---------- swatches & segmented controls ---------- */
+  function buildSwatches(el, key) {
+    INK_NAMES.forEach((name, i) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "swatch"; b.dataset.c = i;
+      b.setAttribute("aria-label", name);
+      b.setAttribute("aria-pressed", String(state.text[key] === i));
+      b.addEventListener("click", () => {
+        state.text[key] = i;
+        el.querySelectorAll(".swatch").forEach(s => s.setAttribute("aria-pressed", String(+s.dataset.c === i)));
+        if (state.text.fg === state.text.bg) setStatus("Text and background are the same color.", "warn"); else setStatus("");
+        schedule();
+      });
+      el.appendChild(b);
+    });
+  }
+  buildSwatches($("fg"), "fg");
+  buildSwatches($("bg"), "bg");
+
+  function seg(id, apply) {
+    const el = $(id);
+    el.querySelectorAll("button[data-v]").forEach(b => b.addEventListener("click", () => {
+      el.querySelectorAll("button[data-v]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      apply(b.dataset.v); schedule();
+    }));
+  }
+  seg("font", v => state.text.font = v);
+  seg("frame", v => state.text.frame = v);
+  seg("fit", v => state.photo.fit = v);
+  seg("dither", v => state.photo.dither = v);
+  $("rotate").addEventListener("click", e => {
+    state.photo.rotate = !state.photo.rotate;
+    e.currentTarget.setAttribute("aria-pressed", String(state.photo.rotate)); schedule();
+  });
+  $("tuned").addEventListener("change", e => { state.photo.tuned = e.target.checked; schedule(); });
+  $("text-input").addEventListener("input", schedule);
+
+  function setMode(m) {
+    state.mode = m;
+    $("tab-text").setAttribute("aria-selected", String(m === "text"));
+    $("tab-photo").setAttribute("aria-selected", String(m === "photo"));
+    $("pane-text").hidden = m !== "text";
+    $("pane-photo").hidden = m !== "photo";
+    schedule();
+  }
+  $("tab-text").addEventListener("click", () => setMode("text"));
+  $("tab-photo").addEventListener("click", () => setMode("photo"));
+
+  function photoStatus(msg, kind) { const p = $("photo-status"); p.textContent = msg; p.className = "status" + (kind ? " " + kind : ""); }
+
+  // Decode via createImageBitmap when available (handles big camera photos and EXIF rotation),
+  // falling back to an <img> fed from a data: URL.
+  async function decodeImage(file) {
+    if (window.createImageBitmap) {
+      try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) { /* fall back */ }
+    }
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(file);
+    });
+    return await new Promise((res, rej) => {
+      const img = new Image(); img.onload = () => res(img); img.onerror = () => rej(new Error("decode")); img.src = dataUrl;
+    });
+  }
+
+  let lastFile = null;
+  async function onPhotoChosen() {
+    const f = $("photo-input").files && $("photo-input").files[0];
+    if (!f || f === lastFile) return;
+    lastFile = f;
+    photoStatus("Loading " + f.name + "…");
+    try {
+      const img = await decodeImage(f);
+      state.photo.img = img;
+      const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
+      photoStatus(f.name + " · " + w + " × " + h, "ok");
+      const base = f.name.replace(/\.[^.]+$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40);
+      if (base) $("filename").value = base;
+      setStatus("");
+      schedule();
+    } catch (e) {
+      lastFile = null;
+      photoStatus("Couldn't open " + f.name + " as an image. Try a JPG or PNG (HEIC isn't supported).", "warn");
+    }
+  }
+  $("photo-input").addEventListener("change", onPhotoChosen);
+  $("photo-input").addEventListener("input", onPhotoChosen);
+
+  /* ---------- rendering to 400x300 RGBA ---------- */
+  function rgb(i) { const c = EzsCore.PALETTE_PURE[i]; return `rgb(${c[0]},${c[1]},${c[2]})`; }
+
+  function renderText() {
+    const t = state.text;
+    wctx.fillStyle = rgb(t.bg); wctx.fillRect(0, 0, W, H);
+    let top = 0, pad = 20;
+    if (t.frame === "bar") { wctx.fillStyle = rgb(t.fg); wctx.fillRect(0, 0, W, 22); top = 22; }
+    if (t.frame === "border") { wctx.strokeStyle = rgb(t.fg); wctx.lineWidth = 8; wctx.strokeRect(10, 10, W - 20, H - 20); pad = 30; }
+
+    const lines = $("text-input").value.split("\n").map(s => s.trim()).filter(Boolean);
+    if (!lines.length) return;
+    const family = t.font === "slab" ? '"Roboto Slab", Georgia, serif' : '"Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif';
+    const weight = t.font === "slab" ? 700 : 800;
+    const boxW = W - pad * 2, boxH = H - top - pad * 2;
+    // Largest size where the widest line fits and all lines stack inside the box.
+    let size = 160;
+    for (; size > 10; size -= 2) {
+      wctx.font = `${weight} ${size}px ${family}`;
+      const widest = Math.max(...lines.map(l => wctx.measureText(l).width));
+      if (widest <= boxW && lines.length * size * 1.08 <= boxH) break;
+    }
+    wctx.font = `${weight} ${size}px ${family}`;
+    wctx.fillStyle = rgb(t.fg); wctx.textAlign = "center"; wctx.textBaseline = "middle";
+    const lh = size * 1.08, total = lh * lines.length;
+    const y0 = top + (H - top - total) / 2 + lh / 2;
+    lines.forEach((l, i) => wctx.fillText(l, W / 2, y0 + i * lh));
+  }
+
+  function renderPhoto() {
+    wctx.fillStyle = "#fff"; wctx.fillRect(0, 0, W, H);
+    const img = state.photo.img;
+    if (!img) {
+      wctx.fillStyle = "#000"; wctx.font = '700 26px "Barlow Semi Condensed", Arial, sans-serif';
+      wctx.textAlign = "center"; wctx.textBaseline = "middle";
+      wctx.fillText("Choose a photo below", W / 2, H / 2);
+      return;
+    }
+    const rot = state.photo.rotate;
+    const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+    const iw = rot ? nh : nw, ih = rot ? nw : nh;
+    const s = state.photo.fit === "cover" ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
+    const dw = iw * s, dh = ih * s;
+    wctx.save();
+    wctx.imageSmoothingQuality = "high";
+    wctx.translate(W / 2, H / 2);
+    if (rot) wctx.rotate(Math.PI / 2);
+    const w2 = rot ? dh : dw, h2 = rot ? dw : dh;
+    wctx.drawImage(img, -w2 / 2, -h2 / 2, w2, h2);
+    wctx.restore();
+  }
+
+  function update() {
+    const isText = state.mode === "text";
+    isText ? renderText() : renderPhoto();
+    const rgba = wctx.getImageData(0, 0, W, H).data;
+    const opts = isText
+      ? { dither: "none", palette: "pure", toneMap: false }
+      : { dither: state.photo.dither, palette: state.photo.tuned ? "tuned" : "pure" };
+    const idx = EzsCore.quantize(rgba, W, H, opts);
+
+    const out = pctx.createImageData(W, H);
+    for (let i = 0; i < idx.length; i++) {
+      const c = SHOW[idx[i]]; out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2]; out.data[i * 4 + 3] = 255;
+    }
+    pctx.putImageData(out, 0, 0);
+
+    const ready = isText ? $("text-input").value.trim().length > 0 : !!state.photo.img;
+    state.payload = ready ? EzsCore.buildEzs(idx) : null;
+    if (state.payload) {
+      const n = new DataView(state.payload.buffer).getUint16(10, true);
+      $("meta-size").textContent = (state.payload.length / 1024).toFixed(1) + " KB payload";
+      $("meta-apdu").textContent = n + " NFC frames";
+    } else {
+      $("meta-size").textContent = "—"; $("meta-apdu").textContent = "—";
+    }
+    $("save").disabled = !state.payload;
+  }
+
+  let pending = 0;
+  function schedule() {
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => setTimeout(update, 0));
+  }
+
+  /* ---------- saving ---------- */
+  function setStatus(msg, kind) { const s = $("status"); s.textContent = msg; s.className = "status" + (kind ? " " + kind : ""); }
+
+  $("save").addEventListener("click", () => {
+    if (!state.payload) return;
+    const base = ($("filename").value || "sign").trim().replace(/[^\w.-]+/g, "_").replace(/\.ezs$/i, "") || "sign";
+    const filename = base + ".ezs";
+    const url = URL.createObjectURL(new Blob([state.payload], { type: "application/octet-stream" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    setStatus(`Saved ${filename} to Downloads. Upload it to apps_data/ez_sign with the Flipper app.`, "ok");
+  });
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+
+  /* ---------- start ---------- */
+  update();
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('800 40px "Barlow Semi Condensed"'),
+      document.fonts.load('700 40px "Roboto Slab"'),
+    ]).then(schedule, schedule);
+  }
+})();
+</script>
+
+</body>
+</html>
