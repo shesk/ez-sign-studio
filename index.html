@@ -308,6 +308,7 @@ Back at 2:30</textarea>
 </div>
 
 <script src="ezs-core.js"></script>
+<script src="vendor/qrcodegen.js"></script>
 <script src="templates.js"></script>
 <script>
 (function () {
@@ -470,7 +471,7 @@ Back at 2:30</textarea>
       } else {
         const lab = document.createElement("label"); lab.className = "label"; lab.htmlFor = id; lab.textContent = f.label;
         const inp = document.createElement("input"); inp.type = "text"; inp.id = id; inp.value = vals[f.key];
-        inp.autocomplete = "off"; inp.spellcheck = false; inp.maxLength = 60;
+        inp.autocomplete = "off"; inp.spellcheck = false; inp.maxLength = f.maxLength || 60;
         inp.addEventListener("input", () => { vals[f.key] = inp.value; schedule(); });
         wrap.append(lab, inp);
       }

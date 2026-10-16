@@ -175,6 +175,28 @@
     ctx.closePath(); ctx.fill();
   }
 
+  // QR code in black on white, centered on (cx, cy) within a square of side `room`.
+  // Modules are whole pixels so every edge is crisp after encoding; keeps a 4-module
+  // quiet zone when there's room (2 at minimum). Too-long content shows a message instead.
+  function drawQr(ctx, text, cx, cy, room) {
+    const lib = (typeof qrcodegen !== "undefined") ? qrcodegen : null;
+    const msg = (a, b) => { fitText(ctx, a, cx, cy - 14, 340, 30, { maxSize: 28 }); fitText(ctx, b, cx, cy + 20, 340, 24, { weight: 600, maxSize: 22 }); };
+    if (!lib) return msg("QR unavailable", "Library failed to load");
+    if (!text.trim()) return msg("Enter a link or text", "to make a QR code");
+    let qr;
+    try { qr = lib.QrCode.encodeText(text, lib.QrCode.Ecc.MEDIUM); } catch (e) { return msg("Too long for a QR code", "Shorten the link or text"); }
+    const n = qr.size;
+    let quiet = 4, scale = Math.floor(room / (n + 2 * quiet));
+    if (scale < 3) { quiet = 2; scale = Math.floor(room / (n + 2 * quiet)); }
+    if (scale < 2) return msg("Too long for this sign", "Shorten the link or text");
+    const side = n * scale, x0 = Math.round(cx - side / 2), y0 = Math.round(cy - side / 2);
+    fill(ctx, Wt, x0 - quiet * scale, y0 - quiet * scale, side + 2 * quiet * scale, side + 2 * quiet * scale);
+    ctx.fillStyle = K;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      if (qr.getModule(x, y)) ctx.fillRect(x0 + x * scale, y0 + y * scale, scale, scale);
+    }
+  }
+
   const INK = { black: K, white: Wt, yellow: Y, red: R };
   const ACCENTS = [{ v: "red", label: "Red" }, { v: "black", label: "Black" }, { v: "yellow", label: "Yellow" }];
   const onAccent = a => (a === "yellow" ? K : Wt); // readable text on an accent band
@@ -398,6 +420,21 @@
         fitText(ctx, v.ssid, W / 2, 170, 350, 48, { weight: 700 });
         fitText(ctx, "PASSWORD", 30, 214, 200, 22, { align: "left", weight: 700, color: R, maxSize: 20 });
         fitText(ctx, v.pass, W / 2, 254, 350, 48, { weight: 700 });
+      },
+    },
+    {
+      id: "qr", name: "QR code",
+      fields: [
+        { key: "title", label: "Title", value: "SCAN ME" },
+        { key: "content", label: "QR link or text", value: "https://shesk.github.io/ez-sign-studio/", maxLength: 1200 },
+        { key: "accent", label: "Title color", type: "choice", options: ACCENTS, value: "black" },
+      ],
+      draw(ctx, v) {
+        fill(ctx, Wt);
+        const bandH = 62;
+        fill(ctx, INK[v.accent], 0, 0, W, bandH);
+        fitText(ctx, v.title, W / 2, bandH / 2, 370, 46, { color: onAccent(v.accent), maxSize: 44 });
+        drawQr(ctx, String(v.content || ""), W / 2, bandH + (H - bandH) / 2, H - bandH);
       },
     },
     {

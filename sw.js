@@ -2,8 +2,8 @@
 // App files: network-first, so an online phone always gets the latest push; cache is the offline fallback.
 // Google Fonts: cache-first (they never change).
 // Bump VERSION only if you need to force-clear old caches; normal updates don't require it.
-const VERSION = "ezsign-v3";
-const APP_FILES = ["./", "index.html", "ezs-core.js", "templates.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const VERSION = "ezsign-v4";
+const APP_FILES = ["./", "index.html", "ezs-core.js", "templates.js", "vendor/qrcodegen.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(APP_FILES)).then(() => self.skipWaiting()));

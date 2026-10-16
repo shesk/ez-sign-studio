@@ -10,7 +10,7 @@ Everything happens on your device. Images are never uploaded.
 
 ## Using it
 
-1. Make a text sign, pick one of the stock templates (badges, room status, caution, Wi‑Fi and more), or choose a photo. For photos, drag the preview to position it and pinch
+1. Make a text sign, pick one of the stock templates (badges, room status, caution, Wi‑Fi, a QR code and more), or choose a photo. For photos, drag the preview to position it and pinch
    (or use the Zoom slider) to crop. Then tap **Save payload**; the `.ezs` file goes to Downloads.
 2. In the Flipper mobile app: **Options → File Manager → ext → apps_data → ez_sign**, upload the file.
 3. On the Flipper: **Apps → NFC → EZ Sign Writer**, press OK, pick the file, hold the Flipper on the sign
@@ -29,3 +29,4 @@ See `CLAUDE.md` for the file format and the rules the encoder must follow.
 
 Protocol research by [niw](https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d).
 Reference encoder: [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink) (MIT).
+QR codes: [Nayuki's QR Code generator](https://github.com/nayuki/QR-Code-generator) (MIT).

@@ -11,6 +11,7 @@ over NFC. Everything runs client-side on the phone: no backend, no uploads, no a
 |---|---|
 | `index.html` | UI, inline CSS and app script. Loads `ezs-core.js`. |
 | `templates.js` | Stock sign/badge templates: `{id, name, fields, draw(ctx, values)}`. Draw with the four pure inks only (`#000`, `#fff`, `#ff0`, `#f00`); the page quantizes templates with no dithering. Check text fits with the longest plausible values. |
+| `vendor/qrcodegen.js` | Nayuki QR Code generator (MIT), compiled from its TypeScript source; header records the commit and build command. Used by the QR template. Don't hand-edit; rebuild from upstream to update. |
 | `ezs-core.js` | Encoder: dithering, pixel packing, LZO1X compression, `.ezs` container. Pure functions, no DOM; also loads in Node. |
 | `sw.js` | Service worker. App files network-first, fonts cache-first. |
 | `manifest.webmanifest`, `icon-*.png` | Install-to-home-screen metadata. |
@@ -49,6 +50,8 @@ change to `ezs-core.js`; it must report 0 failures before committing.
   changes on next launch while online (network-first). Bump `VERSION` in `sw.js` only to force-clear
   old caches, e.g. after renaming or removing a cached file — and update `APP_FILES` if you add one.
 - Phone-first UI: test at ~390 px wide. Every control needs to work by touch.
+- QR template: keep codes black on white, modules on whole pixels, with a quiet zone. Verify changes by
+  decoding a saved `.ezs` back to pixels and scanning it (e.g. OpenCV `QRCodeDetector`), not just the preview.
 
 ## Protocol background (for features that touch the device)
 
