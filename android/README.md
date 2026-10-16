@@ -5,8 +5,8 @@ Writes images from [EZ Sign Studio](https://shesk.github.io/ez-sign-studio/) to 
 
 ## Installing
 
-Download on the phone: https://shesk.github.io/ez-sign-studio/android/releases/ez-sign-writer-1.0.apk
-(SHA-256 in [`releases/SHA256SUMS`](releases/SHA256SUMS), built from commit 1df3422 by `build.sh`).
+Download on the phone: https://shesk.github.io/ez-sign-studio/android/releases/ez-sign-writer-1.1.apk
+(SHA-256 in [`releases/SHA256SUMS`](releases/SHA256SUMS), built from commit edd05fc by `build.sh`).
 Android asks once to allow installs from Chrome; switch that back off afterwards.
 
 ## Using it
@@ -57,4 +57,4 @@ uninstall the old app before installing a build signed with a new key; the app h
 SHA-256 of the signing certificate for releases from this repo:
 `5d5a4428c216bdb763e011ed3291bbe4bae13136dd342cf1c77a0b6967c8adbd`
 
-Check a downloaded APK with `apksigner verify --print-certs ez-sign-writer-1.0.apk`.
+Check a downloaded APK with `apksigner verify --print-certs ez-sign-writer-1.1.apk`.

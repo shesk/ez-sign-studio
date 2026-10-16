@@ -19,7 +19,7 @@ Everything happens on your device. Images are never uploaded.
 ### Writing with your phone instead (Android)
 
 Install **EZ Sign Writer** by opening
-https://shesk.github.io/ez-sign-studio/android/releases/ez-sign-writer-1.0.apk on the phone
+https://shesk.github.io/ez-sign-studio/android/releases/ez-sign-writer-1.1.apk on the phone
 (SHA-256 in [`android/releases/SHA256SUMS`](android/releases/SHA256SUMS)), then use **Send to sign** instead of Save payload. The app asks only for NFC (no internet) and is
 described in [`android/README.md`](android/README.md).
 
