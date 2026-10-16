@@ -53,6 +53,10 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     private final AtomicBoolean busy = new AtomicBoolean(false);
     private NfcAdapter nfc;
     private volatile Ezs payload;
+    // Raw file bytes and name of the loaded payload, saved across activity re-creation (<= 48 KB).
+    private byte[] payloadBytes;
+    private String payloadName;
+    private static final String KEY_BYTES = "ezs.bytes", KEY_NAME = "ezs.name";
     private volatile SignProtocol current;
     private volatile boolean listening;
 
@@ -66,7 +70,15 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         super.onCreate(saved);
         nfc = NfcAdapter.getDefaultAdapter(this);
         buildUi();
-        handleIntent(getIntent());
+        byte[] kept = saved == null ? null : saved.getByteArray(KEY_BYTES);
+        if (kept != null) {
+            // Re-created (e.g. dark mode switch or the system reclaimed memory): restore the loaded image
+            // instead of re-reading the shared file, whose one-time access may have expired.
+            try { showPayload(Ezs.parse(kept), kept, saved.getString(KEY_NAME, "Sign")); }
+            catch (Ezs.FormatException e) { showEmpty(null); }
+        } else {
+            handleIntent(getIntent());
+        }
     }
 
     @Override
@@ -75,6 +87,28 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         setIntent(intent);
         stopListening();
         handleIntent(intent);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        if (payloadBytes != null) {
+            out.putByteArray(KEY_BYTES, payloadBytes);
+            out.putString(KEY_NAME, payloadName);
+        }
+    }
+
+    // Rotation and window resizes are handled here (see configChanges in the manifest) instead of
+    // re-creating the activity, so an in-progress write isn't interrupted when the phone turns.
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration c) {
+        super.onConfigurationChanged(c);
+        fitPreview();
+    }
+
+    /** Keep the preview from pushing the controls off screen in landscape. */
+    private void fitPreview() {
+        preview.setMaxHeight((int) (getResources().getDisplayMetrics().heightPixels * 0.5f));
     }
 
     @Override
@@ -122,8 +156,9 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         worker.execute(() -> {
             try (InputStream in = getContentResolver().openInputStream(uri)) {
                 if (in == null) throw new IOException("Couldn't open the file.");
-                Ezs e = Ezs.parse(Ezs.readLimited(in));
-                runOnUiThread(() -> showPayload(e, name));
+                byte[] raw = Ezs.readLimited(in);
+                Ezs e = Ezs.parse(raw);
+                runOnUiThread(() -> showPayload(e, raw, name));
             } catch (IOException | SecurityException ex) {
                 runOnUiThread(() -> showEmpty(ex.getMessage()));
             }
@@ -142,6 +177,8 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
 
     private void showEmpty(String why) {
         payload = null;
+        payloadBytes = null;
+        payloadName = null;
         preview.setVisibility(View.GONE);
         meta.setText("No image loaded");
         setStatus(why != null ? why
@@ -150,8 +187,10 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         bar.setVisibility(View.GONE);
     }
 
-    private void showPayload(Ezs e, String name) {
+    private void showPayload(Ezs e, byte[] raw, String name) {
         payload = e;
+        payloadBytes = raw;
+        payloadName = name;
         int[] colors = new int[e.pixels.length];
         for (int i = 0; i < colors.length; i++) colors[i] = SHOW[e.pixels[i] & 3];
         Bitmap bmp = Bitmap.createBitmap(colors, e.width, e.height, Bitmap.Config.ARGB_8888);
@@ -317,6 +356,7 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
 
         preview = new ImageView(this);
         preview.setAdjustViewBounds(true);
+        preview.setMaxHeight((int) (getResources().getDisplayMetrics().heightPixels * 0.5f));
         preview.setScaleType(ImageView.ScaleType.FIT_CENTER);
         GradientDrawable bezel = new GradientDrawable();
         bezel.setColor(Color.rgb(18, 18, 20));

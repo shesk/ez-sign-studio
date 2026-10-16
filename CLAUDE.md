@@ -66,6 +66,9 @@ Hard rules: the manifest requests **only** `android.permission.NFC` (never add I
 enabled only between tapping Write and finishing; and the unlock APDU (`00 20`, i.e. VERIFY PIN) is sent
 only after SELECT `D2760000850101` succeeds **and** device info parses as a matching panel, so payment cards
 never receive it. Release builds are signed with a key kept outside the repo; see `android/README.md`.
+The activity must survive rotation without losing the image or interrupting a write: keep
+`android:configChanges` (orientation/screen size) in the manifest, and keep saving the payload bytes in
+`onSaveInstanceState` for other re-creations.
 
 ## Protocol background (for features that touch the device)
 

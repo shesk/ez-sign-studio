@@ -9,8 +9,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION_CODE=1
-VERSION_NAME=1.0
+VERSION_CODE=2
+VERSION_NAME=1.1
 MIN_SDK=33   # keep in sync with <uses-sdk> in AndroidManifest.xml
 
 SDK="${ANDROID_HOME:?set ANDROID_HOME to your Android SDK}"
