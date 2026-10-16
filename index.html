@@ -79,6 +79,11 @@ h1 {
   display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; max-width: 100%;
   image-rendering: pixelated; background: #e6e4df;
 }
+.panel canvas.movable { touch-action: none; cursor: grab; }
+.panel canvas.movable:active { cursor: grabbing; }
+.zoom-row { display: flex; align-items: center; gap: 12px; }
+.zoom-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
+.zoom-val { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
 .panel-meta {
   display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted);
@@ -236,6 +241,15 @@ Back at 2:30</textarea>
       </div>
     </div>
     <div class="field">
+      <label class="label" for="zoom">Zoom</label>
+      <div class="zoom-row">
+        <input id="zoom" type="range" min="100" max="600" step="1" value="100">
+        <span class="zoom-val" id="zoom-val">100%</span>
+        <div class="seg"><button type="button" id="reset-view" aria-pressed="false">Reset</button></div>
+      </div>
+      <p class="hint">Drag the preview to move the photo. Pinch or use the slider to zoom. The panel frame is the crop.</p>
+    </div>
+    <div class="field">
       <span class="label" id="lbl-dither">Dithering</span>
       <div class="seg" id="dither" role="group" aria-labelledby="lbl-dither">
         <button type="button" data-v="atkinson" aria-pressed="true">Atkinson</button>
@@ -285,7 +299,8 @@ Back at 2:30</textarea>
   const state = {
     mode: "text",
     text: { fg: 0, bg: 1, font: "sans", frame: "bar" },
-    photo: { img: null, fit: "cover", rotate: false, dither: "atkinson", tuned: true },
+    // zoom multiplies the framing scale; ox/oy move the photo's center, in panel pixels
+    photo: { img: null, fit: "cover", rotate: false, dither: "atkinson", tuned: true, zoom: 1, ox: 0, oy: 0 },
     payload: null,
   };
 
@@ -322,11 +337,11 @@ Back at 2:30</textarea>
   }
   seg("font", v => state.text.font = v);
   seg("frame", v => state.text.frame = v);
-  seg("fit", v => state.photo.fit = v);
+  seg("fit", v => { state.photo.fit = v; resetView(); });
   seg("dither", v => state.photo.dither = v);
   $("rotate").addEventListener("click", e => {
     state.photo.rotate = !state.photo.rotate;
-    e.currentTarget.setAttribute("aria-pressed", String(state.photo.rotate)); schedule();
+    e.currentTarget.setAttribute("aria-pressed", String(state.photo.rotate)); resetView(); schedule();
   });
   $("tuned").addEventListener("change", e => { state.photo.tuned = e.target.checked; schedule(); });
   $("text-input").addEventListener("input", schedule);
@@ -367,6 +382,7 @@ Back at 2:30</textarea>
     try {
       const img = await decodeImage(f);
       state.photo.img = img;
+      resetView();
       const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
       photoStatus(f.name + " · " + w + " × " + h, "ok");
       const base = f.name.replace(/\.[^.]+$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40);
@@ -410,6 +426,110 @@ Back at 2:30</textarea>
     lines.forEach((l, i) => wctx.fillText(l, W / 2, y0 + i * lh));
   }
 
+  /* ---------- crop & zoom ---------- */
+  // Displayed photo size on the panel (after rotation), in panel pixels.
+  function photoSize() {
+    const img = state.photo.img;
+    const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+    const iw = state.photo.rotate ? nh : nw, ih = state.photo.rotate ? nw : nh;
+    const base = state.photo.fit === "cover" ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
+    const s = base * state.photo.zoom;
+    return { dw: iw * s, dh: ih * s };
+  }
+  // A photo larger than the frame can't be dragged far enough to show a gap;
+  // a smaller one can be placed anywhere inside the frame.
+  function clampOffset() {
+    if (!state.photo.img) return;
+    const { dw, dh } = photoSize();
+    const lx = Math.abs(dw - W) / 2, ly = Math.abs(dh - H) / 2;
+    state.photo.ox = Math.max(-lx, Math.min(lx, state.photo.ox));
+    state.photo.oy = Math.max(-ly, Math.min(ly, state.photo.oy));
+  }
+  function syncZoomUi() {
+    const pct = Math.round(state.photo.zoom * 100);
+    $("zoom").value = pct; $("zoom-val").textContent = pct + "%";
+  }
+  function resetView() {
+    state.photo.zoom = 1; state.photo.ox = 0; state.photo.oy = 0; syncZoomUi();
+  }
+  // Zoom so the panel point (px, py) stays under the finger/cursor.
+  function zoomAbout(z, px, py) {
+    const p = state.photo, z0 = p.zoom;
+    z = Math.max(1, Math.min(6, z));
+    if (z === z0) return;
+    p.ox = (px - W / 2) - ((px - W / 2) - p.ox) * (z / z0);
+    p.oy = (py - H / 2) - ((py - H / 2) - p.oy) * (z / z0);
+    p.zoom = z;
+    clampOffset(); syncZoomUi();
+  }
+
+  // Fast, undithered preview while a gesture is in progress; full dither when it ends.
+  function drawLive() {
+    renderPhoto();
+    pctx.drawImage(work, 0, 0);
+  }
+  let settleTimer = 0;
+  function settleSoon(ms) { clearTimeout(settleTimer); settleTimer = setTimeout(schedule, ms); }
+
+  const pointers = new Map();
+  let pinch = null;
+  function toPanel(e) {
+    const r = prev.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  }
+  function gestureActive() { return state.mode === "photo" && !!state.photo.img; }
+  prev.addEventListener("pointerdown", e => {
+    if (!gestureActive()) return;
+    try { prev.setPointerCapture(e.pointerId); } catch (err) { /* capture is best-effort */ }
+    pointers.set(e.pointerId, toPanel(e));
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: state.photo.zoom };
+    }
+    clearTimeout(settleTimer);
+  });
+  prev.addEventListener("pointermove", e => {
+    if (!pointers.has(e.pointerId)) return;
+    const prevPt = pointers.get(e.pointerId), pt = toPanel(e);
+    pointers.set(e.pointerId, pt);
+    if (pointers.size === 1) {
+      state.photo.ox += pt.x - prevPt.x; state.photo.oy += pt.y - prevPt.y;
+      clampOffset();
+    } else if (pointers.size === 2 && pinch) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      // pan with the midpoint, zoom about it
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      if (pinch.mid) { state.photo.ox += mid.x - pinch.mid.x; state.photo.oy += mid.y - pinch.mid.y; }
+      pinch.mid = mid;
+      if (pinch.dist > 0) zoomAbout(pinch.zoom * d / pinch.dist, mid.x, mid.y);
+      clampOffset();
+    }
+    drawLive();
+  });
+  function endPointer(e) {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0) schedule();
+  }
+  prev.addEventListener("pointerup", endPointer);
+  prev.addEventListener("pointercancel", endPointer);
+  prev.addEventListener("wheel", e => {
+    if (!gestureActive()) return;
+    e.preventDefault();
+    const pt = toPanel(e);
+    zoomAbout(state.photo.zoom * Math.exp(-e.deltaY * 0.0015), pt.x, pt.y);
+    drawLive(); settleSoon(200);
+  }, { passive: false });
+
+  $("zoom").addEventListener("input", e => {
+    if (!state.photo.img) { syncZoomUi(); return; }
+    zoomAbout(+e.target.value / 100, W / 2, H / 2);
+    drawLive(); settleSoon(150);
+  });
+  $("reset-view").addEventListener("click", () => { resetView(); schedule(); });
+
   function renderPhoto() {
     wctx.fillStyle = "#fff"; wctx.fillRect(0, 0, W, H);
     const img = state.photo.img;
@@ -420,13 +540,10 @@ Back at 2:30</textarea>
       return;
     }
     const rot = state.photo.rotate;
-    const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
-    const iw = rot ? nh : nw, ih = rot ? nw : nh;
-    const s = state.photo.fit === "cover" ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
-    const dw = iw * s, dh = ih * s;
+    const { dw, dh } = photoSize();
     wctx.save();
     wctx.imageSmoothingQuality = "high";
-    wctx.translate(W / 2, H / 2);
+    wctx.translate(W / 2 + state.photo.ox, H / 2 + state.photo.oy);
     if (rot) wctx.rotate(Math.PI / 2);
     const w2 = rot ? dh : dw, h2 = rot ? dw : dh;
     wctx.drawImage(img, -w2 / 2, -h2 / 2, w2, h2);
@@ -435,6 +552,7 @@ Back at 2:30</textarea>
 
   function update() {
     const isText = state.mode === "text";
+    prev.classList.toggle("movable", gestureActive());
     isText ? renderText() : renderPhoto();
     const rgba = wctx.getImageData(0, 0, W, H).data;
     const opts = isText

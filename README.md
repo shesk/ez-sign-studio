@@ -10,7 +10,8 @@ Everything happens on your device. Images are never uploaded.
 
 ## Using it
 
-1. Make a text sign or choose a photo, then tap **Save payload**. The `.ezs` file goes to Downloads.
+1. Make a text sign or choose a photo. For photos, drag the preview to position it and pinch
+   (or use the Zoom slider) to crop. Then tap **Save payload**; the `.ezs` file goes to Downloads.
 2. In the Flipper mobile app: **Options → File Manager → ext → apps_data → ez_sign**, upload the file.
 3. On the Flipper: **Apps → NFC → EZ Sign Writer**, press OK, pick the file, hold the Flipper on the sign
    until it vibrates (~30 s).
