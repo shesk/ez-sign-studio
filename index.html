@@ -451,7 +451,10 @@ Back at 2:30</textarea>
     const t = tplById(state.tpl.id), vals = tplValues(t), box = $("tpl-fields");
     box.replaceChildren();
     const h = document.createElement("h2"); h.textContent = t.name; box.appendChild(h);
-    t.fields.forEach(f => {
+    // showIf: { key: value | [values] } — hide fields that don't apply to the current choices
+    const visible = f => !f.showIf || Object.entries(f.showIf).every(([k, want]) =>
+      Array.isArray(want) ? want.includes(vals[k]) : vals[k] === want);
+    t.fields.filter(visible).forEach(f => {
       const wrap = document.createElement("div"); wrap.className = "field";
       const id = `tpl-${t.id}-${f.key}`;
       if (f.type === "choice") {
@@ -462,7 +465,15 @@ Back at 2:30</textarea>
           b.setAttribute("aria-pressed", String(vals[f.key] === o.v));
           b.addEventListener("click", () => {
             vals[f.key] = o.v;
-            seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+            // an option can preset other fields, but never overwrite something the user typed
+            if (o.sets) for (const [k, val] of Object.entries(o.sets)) {
+              const presets = f.options.map(x => x.sets && x.sets[k]).filter(Boolean);
+              const orig = (t.fields.find(x => x.key === k) || {}).value;
+              if (vals[k] === orig || presets.includes(vals[k])) vals[k] = val;
+            }
+            const dependents = t.fields.some(x => x.showIf && f.key in x.showIf);
+            if (dependents || o.sets) buildTplFields();
+            else seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
             schedule();
           });
           seg.appendChild(b);

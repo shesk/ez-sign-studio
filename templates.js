@@ -197,6 +197,18 @@
     }
   }
 
+  // Wi-Fi join code understood by Android and iOS cameras:
+  //   WIFI:T:<WPA|WEP|nopass>;S:<ssid>;P:<password>;H:true;;
+  // Backslash, semicolon, comma, colon and double quote must be backslash-escaped.
+  function wifiEscape(t) { return String(t || "").replace(/([\\;,:"])/g, "\\$1"); }
+  function wifiQrString(v) {
+    const sec = ["WPA", "WEP", "nopass"].includes(v.sec) ? v.sec : "WPA";
+    let s = `WIFI:T:${sec};S:${wifiEscape(v.ssid)};`;
+    if (sec !== "nopass") s += `P:${wifiEscape(v.pass)};`;
+    if (v.hidden === "yes") s += "H:true;";
+    return s + ";";
+  }
+
   const INK = { black: K, white: Wt, yellow: Y, red: R };
   const ACCENTS = [{ v: "red", label: "Red" }, { v: "black", label: "Black" }, { v: "yellow", label: "Yellow" }];
   const onAccent = a => (a === "yellow" ? K : Wt); // readable text on an accent band
@@ -425,16 +437,51 @@
     {
       id: "qr", name: "QR code",
       fields: [
+        { key: "kind", label: "QR type", type: "choice", value: "link",
+          options: [
+            { v: "link", label: "Link or text", sets: { title: "SCAN ME" } },
+            { v: "wifi", label: "Wi‑Fi", sets: { title: "SCAN TO JOIN WI-FI" } },
+          ] },
         { key: "title", label: "Title", value: "SCAN ME" },
-        { key: "content", label: "QR link or text", value: "https://shesk.github.io/ez-sign-studio/", maxLength: 1200 },
+        { key: "content", label: "Link or text", value: "https://shesk.github.io/ez-sign-studio/", maxLength: 1200,
+          showIf: { kind: "link" } },
+        { key: "ssid", label: "Network name", value: "Guest-WiFi", maxLength: 32, showIf: { kind: "wifi" } },
+        { key: "sec", label: "Security", type: "choice", value: "WPA", showIf: { kind: "wifi" },
+          options: [{ v: "WPA", label: "WPA/WPA2/WPA3" }, { v: "WEP", label: "WEP" }, { v: "nopass", label: "Open (no password)" }] },
+        { key: "pass", label: "Password", value: "welcome-2026", maxLength: 63, showIf: { kind: "wifi", sec: ["WPA", "WEP"] } },
+        { key: "hidden", label: "Hidden network", type: "choice", value: "no", showIf: { kind: "wifi" },
+          options: [{ v: "no", label: "No" }, { v: "yes", label: "Yes" }] },
+        { key: "details", label: "Print network details on the sign", type: "choice", value: "yes", showIf: { kind: "wifi" },
+          options: [{ v: "yes", label: "Show" }, { v: "no", label: "QR only" }] },
         { key: "accent", label: "Title color", type: "choice", options: ACCENTS, value: "black" },
       ],
       draw(ctx, v) {
         fill(ctx, Wt);
-        const bandH = 62;
+        const bandH = 62, room = H - bandH, cy = bandH + room / 2;
         fill(ctx, INK[v.accent], 0, 0, W, bandH);
         fitText(ctx, v.title, W / 2, bandH / 2, 370, 46, { color: onAccent(v.accent), maxSize: 44 });
-        drawQr(ctx, String(v.content || ""), W / 2, bandH + (H - bandH) / 2, H - bandH);
+        if (v.kind !== "wifi") return drawQr(ctx, String(v.content || ""), W / 2, cy, room);
+
+        if (!String(v.ssid || "").trim()) {
+          fitText(ctx, "Enter a network name", W / 2, cy, 340, 30, { maxSize: 28 });
+          return;
+        }
+        const payload = wifiQrString(v);
+        if (v.details === "no") return drawQr(ctx, payload, W / 2, cy, room);
+
+        // QR on the left, typed-in details on the right for people who'd rather not scan
+        drawQr(ctx, payload, 8 + room / 2, cy, room);
+        const x = room + 20, w = W - x - 14;
+        const open = v.sec === "nopass";
+        const label = (t, y) => fitText(ctx, t, x, y, w, 20, { align: "left", weight: 700, color: R, maxSize: 18 });
+        const value = (t, y) => fitText(ctx, t, x, y, w, 30, { align: "left", weight: 700, maxSize: 28 });
+        if (open) {
+          label("NETWORK", cy - 36); value(v.ssid, cy - 10);
+          label("NO PASSWORD", cy + 34);
+        } else {
+          label("NETWORK", cy - 56); value(v.ssid, cy - 30);
+          label("PASSWORD", cy + 14); value(v.pass, cy + 40);
+        }
       },
     },
     {
@@ -463,5 +510,5 @@
     },
   ];
 
-  root.EzsTemplates = { TEMPLATES, W, H };
+  root.EzsTemplates = { TEMPLATES, W, H, wifiQrString };
 })(typeof self !== "undefined" ? self : this);

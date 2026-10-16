@@ -109,5 +109,17 @@ check(solid(255, 255, 255) === 1, "white -> 1");
 check(solid(255, 255, 0) === 2, "yellow -> 2");
 check(solid(255, 0, 0) === 3, "red -> 3");
 
+// 6. Wi-Fi QR join strings: escaping and fields, per the WIFI: URI convention.
+const { EzsTemplates } = require("../templates.js");
+const BS = "\\";
+const wifi = [
+  [{ ssid: "Guest-WiFi", pass: "welcome-2026", sec: "WPA" }, "WIFI:T:WPA;S:Guest-WiFi;P:welcome-2026;;"],
+  [{ ssid: "Cafe;Guest", pass: 'p@ss:wo,rd"' + BS + "1", sec: "WPA", hidden: "yes" },
+    "WIFI:T:WPA;S:Cafe" + BS + ";Guest;P:p@ss" + BS + ":wo" + BS + ",rd" + BS + '"' + BS + BS + "1;H:true;;"],
+  [{ ssid: "Lobby", pass: "ignored", sec: "nopass" }, "WIFI:T:nopass;S:Lobby;;"],
+  [{ ssid: "Old", pass: "abc", sec: "WEP" }, "WIFI:T:WEP;S:Old;P:abc;;"],
+];
+for (const [v, want] of wifi) check(EzsTemplates.wifiQrString(v) === want, `wifi string for ${JSON.stringify(v.ssid)}: got ${EzsTemplates.wifiQrString(v)}`);
+
 console.log(`${checks - failures}/${checks} checks passed`);
 process.exit(failures ? 1 : 0);
