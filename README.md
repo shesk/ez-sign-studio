@@ -16,6 +16,12 @@ Everything happens on your device. Images are never uploaded.
 3. On the Flipper: **Apps → NFC → EZ Sign Writer**, press OK, pick the file, hold the Flipper on the sign
    until it vibrates (~30 s).
 
+### Writing with your phone instead (Android)
+
+Install **EZ Sign Writer** from this repo's [Releases](https://github.com/shesk/ez-sign-studio/releases),
+then use **Send to sign** instead of Save payload. The app asks only for NFC (no internet) and is
+described in [`android/README.md`](android/README.md).
+
 ## Development
 
 ```

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The sign: light panel with a red header bar and black / yellow / red ink bars,
+     plus three NFC arcs. Kept inside the 66dp safe zone of the 108dp canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#E9E7E2" android:pathData="M28,36h44v34h-44z" />
+    <path android:fillColor="#B5281C" android:pathData="M28,36h44v6h-44z" />
+    <path android:fillColor="#1D1B1B" android:pathData="M33,50h10v15h-10z" />
+    <path android:fillColor="#E5B30C" android:pathData="M45,50h10v15h-10z" />
+    <path android:fillColor="#B5281C" android:pathData="M57,50h10v15h-10z" />
+    <path android:strokeColor="#E9E7E2" android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M44,30 Q50,26 56,30 M40,26 Q50,19 60,26" />
+</vector>

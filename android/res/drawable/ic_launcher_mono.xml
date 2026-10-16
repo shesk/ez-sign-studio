@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single-color version for Android's themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M28,36h44v34h-44z M33,50v15h10v-15z M45,50v15h10v-15z M57,50v15h10v-15z"
+        android:fillType="evenOdd" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M44,30 Q50,26 56,30 M40,26 Q50,19 60,26" />
+</vector>

@@ -169,6 +169,9 @@ textarea { min-height: 5.5rem; resize: vertical; font-family: var(--font-display
   background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 13px; cursor: pointer;
 }
 .primary:disabled { opacity: 0.5; cursor: default; }
+.save-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.save-actions .primary { flex: 1 1 140px; }
+#save.secondary { background: var(--surface); color: var(--ink); border: 1.5px solid var(--line); }
 .status { font-size: var(--step--1); min-height: 1.2em; margin: 0; }
 .status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
 
@@ -291,12 +294,18 @@ Back at 2:30</textarea>
       <input id="filename" type="text" value="meeting" autocomplete="off" spellcheck="false">
       <span class="ext">.ezs</span>
     </div>
-    <button class="primary" id="save" type="button">Save payload</button>
+    <div class="save-actions">
+      <button class="primary" id="send" type="button" hidden>Send to sign</button>
+      <button class="primary" id="save" type="button">Save payload</button>
+    </div>
     <p class="status" id="status" role="status"></p>
   </div>
 
   <section style="display:flex;flex-direction:column;gap:8px">
-    <h2>Send it to the Flipper</h2>
+    <h2>Write it to the sign</h2>
+    <p id="send-help" hidden><b>With your phone:</b> tap <b>Send to sign</b>, choose <b>EZ Sign Writer</b>, then tap
+      <b>Write to sign</b> and hold the phone on the sign for about 30 seconds. Needs the EZ Sign Writer Android app.</p>
+    <p><b>With the Flipper:</b></p>
     <ol class="steps">
       <li>Tap <b>Save payload</b>. The file lands in your Downloads folder.</li>
       <li>Open the <b>Flipper</b> mobile app, connected over Bluetooth.</li>
@@ -729,6 +738,7 @@ Back at 2:30</textarea>
       $("meta-size").textContent = "—"; $("meta-apdu").textContent = "—";
     }
     $("save").disabled = !state.payload;
+    $("send").disabled = !state.payload;
   }
 
   let pending = 0;
@@ -749,6 +759,35 @@ Back at 2:30</textarea>
     a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     setStatus(`Saved ${filename} to Downloads. Upload it to apps_data/ez_sign with the Flipper app.`, "ok");
+  });
+
+  /* ---------- send to the EZ Sign Writer Android app via the share sheet ---------- */
+  // Chrome only shares a fixed list of file types, so the payload travels as a .txt file.
+  // The app checks the contents (EZS1 header, framing, decompression) before showing or writing it.
+  function payloadFile() {
+    const base = ($("filename").value || "sign").trim().replace(/[^\w.-]+/g, "_").replace(/\.ezs$/i, "") || "sign";
+    return new File([state.payload], base + ".ezs.txt", { type: "text/plain" });
+  }
+  const canSendFiles = (() => {
+    try {
+      return !!(navigator.canShare && navigator.share && /Android/i.test(navigator.userAgent) &&
+        navigator.canShare({ files: [new File([new Uint8Array(4)], "probe.ezs.txt", { type: "text/plain" })] }));
+    } catch (e) { return false; }
+  })();
+  if (canSendFiles) {
+    $("send").hidden = false;
+    $("send-help").hidden = false;
+    $("save").classList.add("secondary");
+  }
+  $("send").addEventListener("click", async () => {
+    if (!state.payload) return;
+    try {
+      await navigator.share({ files: [payloadFile()] });
+      setStatus("Sent. In EZ Sign Writer, tap Write to sign and hold your phone on the sign.", "ok");
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // closed the share sheet
+      setStatus("Couldn't open the share sheet (" + (e && e.name || "error") + "). Use Save payload instead.", "warn");
+    }
   });
 
   if ("serviceWorker" in navigator) {

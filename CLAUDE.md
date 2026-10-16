@@ -54,10 +54,24 @@ change to `ezs-core.js`; it must report 0 failures before committing.
 - QR template: keep codes black on white, modules on whole pixels, with a quiet zone. Verify changes by
   decoding a saved `.ezs` back to pixels and scanning it (e.g. OpenCV `QRCodeDetector`), not just the preview.
 
+## Android app (`android/`)
+
+"EZ Sign Writer": receives a payload from the site's **Send to sign** button (Web Share of a
+`.ezs.txt` file, since Chrome only shares a fixed list of types) and writes it over the phone's NFC.
+Plain Java, no Gradle, no third-party libraries; `android/build.sh` builds with the SDK's own tools and
+runs `android/test/Tests.java` first. `Ezs.java` and `SignProtocol.java` must stay free of Android APIs so
+those JVM tests keep working.
+
+Hard rules: the manifest requests **only** `android.permission.NFC` (never add INTERNET); reader mode is
+enabled only between tapping Write and finishing; and the unlock APDU (`00 20`, i.e. VERIFY PIN) is sent
+only after SELECT `D2760000850101` succeeds **and** device info parses as a matching panel, so payment cards
+never receive it. Release builds are signed with a key kept outside the repo; see `android/README.md`.
+
 ## Protocol background (for features that touch the device)
 
 ISO 14443-4A tag, ISO 7816 APDUs. Auth is a fixed constant (`00 20 00 01 04 20 09 12 10`), so the
 display has no real access control. Refresh takes ~30 s and the reader must keep the RF field up the
-whole time. References: https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d and
+whole time. Android uses the non-blocking refresh (`F0 D4 85 80 00`) and polls `F0 DE`; iOS Core NFC has a
+20 s session cap, so iOS implementations use the blocking form (`P2=00`) instead. References: https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d and
 https://github.com/alt-core/nfc-eink (MIT; reference encoder used for the fixtures).
 Browsers can't drive this directly: Web NFC only supports NDEF, not raw ISO-DEP APDUs.
