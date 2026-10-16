@@ -3,6 +3,12 @@
 Writes images from [EZ Sign Studio](https://shesk.github.io/ez-sign-studio/) to a Santek EZ Sign
 4.2" 4-color display using the phone's own NFC. No Flipper needed.
 
+## Installing
+
+Download on the phone: https://shesk.github.io/ez-sign-studio/android/releases/ez-sign-writer-1.0.apk
+(SHA-256 in [`releases/SHA256SUMS`](releases/SHA256SUMS), built from commit 1df3422 by `build.sh`).
+Android asks once to allow installs from Chrome; switch that back off afterwards.
+
 ## Using it
 
 1. In EZ Sign Studio, make your sign and tap **Send to sign**.
