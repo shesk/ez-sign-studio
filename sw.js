@@ -2,7 +2,7 @@
 // App files: network-first, so an online phone always gets the latest push; cache is the offline fallback.
 // Google Fonts: cache-first (they never change).
 // Bump VERSION only if you need to force-clear old caches; normal updates don't require it.
-const VERSION = "ezsign-v4";
+const VERSION = "ezsign-v5";
 const APP_FILES = ["./", "index.html", "ezs-core.js", "templates.js", "vendor/qrcodegen.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -24,7 +24,10 @@ self.addEventListener("fetch", e => {
     return;
   }
   if (url.origin !== self.location.origin) return;
-  e.respondWith(fetch(e.request).then(res => {
+  // cache: "no-cache" makes the browser revalidate with GitHub Pages (ETag) instead of
+  // reusing its HTTP cache, which Pages allows for 10 minutes (max-age=600). Without it,
+  // a fresh push can stay invisible on an installed phone for up to 10 minutes.
+  e.respondWith(fetch(e.request.url, { cache: "no-cache", credentials: "same-origin" }).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); }
     return res;
   }).catch(() => caches.match(e.request).then(hit => hit || caches.match("index.html"))));

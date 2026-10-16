@@ -47,7 +47,8 @@ change to `ezs-core.js`; it must report 0 failures before committing.
 - Keep it dependency-free and offline-capable: no build step, no CDN scripts. Google Fonts is the
   only external request and has system-font fallbacks.
 - Deploy = push to `main`; GitHub Pages republishes in about a minute. Installed phones pick up
-  changes on next launch while online (network-first). Bump `VERSION` in `sw.js` only to force-clear
+  changes on next launch while online (network-first, revalidating past GitHub Pages' 10-minute
+  HTTP cache). Bump `VERSION` in `sw.js` only to force-clear
   old caches, e.g. after renaming or removing a cached file — and update `APP_FILES` if you add one.
 - Phone-first UI: test at ~390 px wide. Every control needs to work by touch.
 - QR template: keep codes black on white, modules on whole pixels, with a quiet zone. Verify changes by
