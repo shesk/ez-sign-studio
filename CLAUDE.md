@@ -10,6 +10,7 @@ over NFC. Everything runs client-side on the phone: no backend, no uploads, no a
 | File | Role |
 |---|---|
 | `index.html` | UI, inline CSS and app script. Loads `ezs-core.js`. |
+| `templates.js` | Stock sign/badge templates: `{id, name, fields, draw(ctx, values)}`. Draw with the four pure inks only (`#000`, `#fff`, `#ff0`, `#f00`); the page quantizes templates with no dithering. Check text fits with the longest plausible values. |
 | `ezs-core.js` | Encoder: dithering, pixel packing, LZO1X compression, `.ezs` container. Pure functions, no DOM; also loads in Node. |
 | `sw.js` | Service worker. App files network-first, fonts cache-first. |
 | `manifest.webmanifest`, `icon-*.png` | Install-to-home-screen metadata. |

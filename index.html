@@ -84,6 +84,15 @@ h1 {
 .zoom-row { display: flex; align-items: center; gap: 12px; }
 .zoom-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
 .zoom-val { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tpl {
+  display: flex; flex-direction: column; gap: 6px; padding: 6px; cursor: pointer; text-align: left;
+  background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius); color: var(--ink);
+  font: 600 var(--step--1) var(--font-body);
+}
+.tpl canvas { width: 100%; height: auto; aspect-ratio: 4 / 3; display: block; border-radius: 4px; background: #e6e4df; }
+.tpl[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tpl-fields { display: flex; flex-direction: column; gap: 12px; }
 .panel-meta {
   display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted);
@@ -91,7 +100,7 @@ h1 {
 }
 
 /* Mode switch */
-.modes { display: grid; grid-template-columns: 1fr 1fr; background: var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; }
 .modes button {
   font: 600 var(--step-0) var(--font-display); letter-spacing: 0.04em; text-transform: uppercase;
   border: 0; border-radius: 8px; padding: 10px; background: transparent; color: var(--muted); cursor: pointer;
@@ -189,6 +198,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   <div class="modes" role="tablist" aria-label="What to put on the sign">
     <button id="tab-text" role="tab" aria-selected="true" aria-controls="pane-text">Text sign</button>
     <button id="tab-photo" role="tab" aria-selected="false" aria-controls="pane-photo">Photo</button>
+    <button id="tab-tpl" role="tab" aria-selected="false" aria-controls="pane-tpl">Templates</button>
   </div>
 
   <fieldset id="pane-text" role="tabpanel" aria-labelledby="tab-text">
@@ -269,6 +279,12 @@ Back at 2:30</textarea>
     </label>
   </fieldset>
 
+  <fieldset id="pane-tpl" role="tabpanel" aria-labelledby="tab-tpl" hidden>
+    <div class="tpl-fields" id="tpl-fields"></div>
+    <h2 id="lbl-gallery">Choose a template</h2>
+    <div class="gallery" id="gallery" role="group" aria-labelledby="lbl-gallery"></div>
+  </fieldset>
+
   <div class="save">
     <label class="label" for="filename">File name</label>
     <div class="name-row">
@@ -292,6 +308,7 @@ Back at 2:30</textarea>
 </div>
 
 <script src="ezs-core.js"></script>
+<script src="templates.js"></script>
 <script>
 (function () {
   "use strict";
@@ -305,6 +322,7 @@ Back at 2:30</textarea>
     text: { fg: 0, bg: 1, font: "sans", frame: "bar" },
     // zoom multiplies the framing scale; ox/oy move the photo's center, in panel pixels
     photo: { img: null, fit: "cover", rotate: false, dither: "atkinson", tuned: true, zoom: 1, ox: 0, oy: 0, margin: 1 },
+    tpl: { id: "hello", values: {} }, // values[templateId][fieldKey]
     payload: null,
   };
 
@@ -354,14 +372,111 @@ Back at 2:30</textarea>
 
   function setMode(m) {
     state.mode = m;
-    $("tab-text").setAttribute("aria-selected", String(m === "text"));
-    $("tab-photo").setAttribute("aria-selected", String(m === "photo"));
-    $("pane-text").hidden = m !== "text";
-    $("pane-photo").hidden = m !== "photo";
+    for (const k of ["text", "photo", "tpl"]) {
+      $("tab-" + k).setAttribute("aria-selected", String(m === k));
+      $("pane-" + k).hidden = m !== k;
+    }
+    if (m === "tpl") { buildGallery(); $("filename").value = state.tpl.id; }
     schedule();
   }
   $("tab-text").addEventListener("click", () => setMode("text"));
   $("tab-photo").addEventListener("click", () => setMode("photo"));
+  $("tab-tpl").addEventListener("click", () => setMode("tpl"));
+
+  /* ---------- templates ---------- */
+  const TPLS = EzsTemplates.TEMPLATES;
+  const tplById = id => TPLS.find(t => t.id === id) || TPLS[0];
+  function tplValues(t) {
+    if (!state.tpl.values[t.id]) {
+      state.tpl.values[t.id] = Object.fromEntries(t.fields.map(f => [f.key, f.value]));
+    }
+    return state.tpl.values[t.id];
+  }
+  function renderTemplate(ctx) {
+    const t = tplById(state.tpl.id);
+    ctx.save();
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+    t.draw(ctx, tplValues(t));
+    ctx.restore();
+  }
+  // Thumbnail: draw at full size, quantize like the real output, scale down.
+  function paintThumb(canvas, t) {
+    const full = document.createElement("canvas"); full.width = W; full.height = H;
+    const fctx = full.getContext("2d", { willReadFrequently: true });
+    fctx.fillStyle = "#fff"; fctx.fillRect(0, 0, W, H);
+    t.draw(fctx, Object.fromEntries(t.fields.map(f => [f.key, f.value])));
+    const idx = EzsCore.quantize(fctx.getImageData(0, 0, W, H).data, W, H, { dither: "none", palette: "pure", toneMap: false });
+    const img = fctx.createImageData(W, H);
+    for (let i = 0; i < idx.length; i++) { const c = SHOW[idx[i]]; img.data.set([c[0], c[1], c[2], 255], i * 4); }
+    fctx.putImageData(img, 0, 0);
+    const c = canvas.getContext("2d"); c.imageSmoothingQuality = "high";
+    c.drawImage(full, 0, 0, canvas.width, canvas.height);
+  }
+  let galleryBuilt = false;
+  function buildGallery() {
+    if (galleryBuilt) return;
+    galleryBuilt = true;
+    const g = $("gallery");
+    TPLS.forEach(t => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "tpl"; b.dataset.id = t.id;
+      b.setAttribute("aria-pressed", String(t.id === state.tpl.id));
+      const cv = document.createElement("canvas"); cv.width = 240; cv.height = 180;
+      const label = document.createElement("span"); label.textContent = t.name;
+      b.append(cv, label);
+      b.addEventListener("click", () => selectTemplate(t.id));
+      g.appendChild(b);
+    });
+    // paint thumbnails a few at a time so the tab opens instantly
+    let i = 0;
+    const step = () => {
+      const btns = g.querySelectorAll(".tpl");
+      for (let n = 0; n < 3 && i < TPLS.length; n++, i++) paintThumb(btns[i].querySelector("canvas"), TPLS[i]);
+      if (i < TPLS.length) setTimeout(step, 0);
+    };
+    setTimeout(step, 0);
+    buildTplFields();
+  }
+  function selectTemplate(id) {
+    state.tpl.id = id;
+    $("gallery").querySelectorAll(".tpl").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === id)));
+    $("filename").value = id;
+    buildTplFields();
+    schedule();
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.querySelector(".panel").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }
+  function buildTplFields() {
+    const t = tplById(state.tpl.id), vals = tplValues(t), box = $("tpl-fields");
+    box.replaceChildren();
+    const h = document.createElement("h2"); h.textContent = t.name; box.appendChild(h);
+    t.fields.forEach(f => {
+      const wrap = document.createElement("div"); wrap.className = "field";
+      const id = `tpl-${t.id}-${f.key}`;
+      if (f.type === "choice") {
+        const lab = document.createElement("span"); lab.className = "label"; lab.id = id + "-lbl"; lab.textContent = f.label;
+        const seg = document.createElement("div"); seg.className = "seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-labelledby", lab.id);
+        f.options.forEach(o => {
+          const b = document.createElement("button"); b.type = "button"; b.textContent = o.label;
+          b.setAttribute("aria-pressed", String(vals[f.key] === o.v));
+          b.addEventListener("click", () => {
+            vals[f.key] = o.v;
+            seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+            schedule();
+          });
+          seg.appendChild(b);
+        });
+        wrap.append(lab, seg);
+      } else {
+        const lab = document.createElement("label"); lab.className = "label"; lab.htmlFor = id; lab.textContent = f.label;
+        const inp = document.createElement("input"); inp.type = "text"; inp.id = id; inp.value = vals[f.key];
+        inp.autocomplete = "off"; inp.spellcheck = false; inp.maxLength = 60;
+        inp.addEventListener("input", () => { vals[f.key] = inp.value; schedule(); });
+        wrap.append(lab, inp);
+      }
+      box.appendChild(wrap);
+    });
+  }
 
   function photoStatus(msg, kind) { const p = $("photo-status"); p.textContent = msg; p.className = "status" + (kind ? " " + kind : ""); }
 
@@ -577,11 +692,11 @@ Back at 2:30</textarea>
   }
 
   function update() {
-    const isText = state.mode === "text";
+    const isText = state.mode === "text", isTpl = state.mode === "tpl";
     prev.classList.toggle("movable", gestureActive());
-    isText ? renderText() : renderPhoto();
+    if (isTpl) renderTemplate(wctx); else if (isText) renderText(); else renderPhoto();
     const rgba = wctx.getImageData(0, 0, W, H).data;
-    const opts = isText
+    const opts = (isText || isTpl)
       ? { dither: "none", palette: "pure", toneMap: false }
       : { dither: state.photo.dither, palette: state.photo.tuned ? "tuned" : "pure" };
     const idx = EzsCore.quantize(rgba, W, H, opts);
@@ -592,7 +707,7 @@ Back at 2:30</textarea>
     }
     pctx.putImageData(out, 0, 0);
 
-    const ready = isText ? $("text-input").value.trim().length > 0 : !!state.photo.img;
+    const ready = isTpl ? true : isText ? $("text-input").value.trim().length > 0 : !!state.photo.img;
     state.payload = ready ? EzsCore.buildEzs(idx) : null;
     if (state.payload) {
       const n = new DataView(state.payload.buffer).getUint16(10, true);
